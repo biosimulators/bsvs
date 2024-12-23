@@ -1,0 +1,648 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>bio_compose.verifier &mdash; BioCompose 0.5.5 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=45def3bc"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            BioCompose
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../verification.html">Verification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../simulation_runs.html">Simulation Runs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cli.html">Command Line Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">API Documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">BioCompose</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">bio_compose.verifier</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for bio_compose.verifier</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">uuid4</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">antimony</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">matplotlib.figure</span> <span class="kn">import</span> <span class="n">Figure</span>
+<span class="kn">from</span> <span class="nn">requests_toolbelt.multipart.encoder</span> <span class="kn">import</span> <span class="n">MultipartEncoder</span>
+
+<span class="kn">from</span> <span class="nn">bio_compose.data_model</span> <span class="kn">import</span> <span class="n">Api</span><span class="p">,</span> <span class="n">RequestError</span><span class="p">,</span> <span class="n">save_plot</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;Verifier&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;VerificationResult&#39;</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="Verifier">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.verifier.Verifier">[docs]</a>
+<span class="k">class</span> <span class="nc">Verifier</span><span class="p">(</span><span class="n">Api</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    API for verifying (running and comparing) the results of multiple simulators for a given SBML model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A new instance of the Verifier class. **NOTE**: this may clash with your record keeping in a notebook, so it is highly recommended that users treat instances of this class as quasi-singletons, although not necessary for fundamental interaction.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="c1"># -- api calls</span>
+<div class="viewcode-block" id="Verifier.verify_omex">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.verifier.Verifier.verify_omex">[docs]</a>
+    <span class="k">def</span> <span class="nf">verify_omex</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">omex_filepath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">simulators</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">include_outputs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">comparison_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">expected_results</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">selection_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">rTol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">aTol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">_steady_state</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">RequestError</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Submit a new uniform time course comparison job to the service and return confirmation of job submission.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - **omex_filepath**: `str`: The path to the omex file to submit.</span>
+<span class="sd">            - **simulators**: `List[str]`: The list of simulators to include in comparison. Defaults to all utc simulators (amici, copasi, tellurium)</span>
+<span class="sd">            - **include_outputs**: `bool, optional`: Whether to include the output data used to calculate comparison in the job results on result fetch. Defaults to True.</span>
+<span class="sd">            - **comparison_id**: `str, optional`: The unique identifier for the comparison job. Defaults to None. If `None` is passed, a comparison id of `bio_check-request-&lt;UUID&gt;` is generated.</span>
+<span class="sd">            - **expected_results**: `str, optional`: The path to the ground expected_results report file to include in comparison. Defaults to None.</span>
+<span class="sd">            - **selection_list**: `List[str], optional`: The list of observables to include in comparison output. Defaults to None (all observables).</span>
+<span class="sd">            - **rTol**: `float, optional`: The relative tolerance used to determine the relative distance in a pairwise comparison.</span>
+<span class="sd">            - **aTol**: `float, optional`: The absolute tolerance used to determine the absolute distance in a pairwise comparison.</span>
+<span class="sd">            - **_steady_state**: `bool, optional`: Whether to include the steady state analysis job. NOTE: This feature will currently throw an error as it is not yet implemented.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dictionary containing the job submission results. **Note**: the return status should read `PENDING`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">_steady_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;The steady state analysis of model files is not yet implemented and currently under development.&quot;</span><span class="p">)</span>
+
+        <span class="n">endpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_endpoint</span><span class="p">(</span><span class="s1">&#39;verify-omex&#39;</span><span class="p">)</span>
+
+        <span class="c1"># configure params</span>
+        <span class="n">_id</span> <span class="o">=</span> <span class="n">comparison_id</span> <span class="ow">or</span> <span class="s2">&quot;bio_check-request-&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid4</span><span class="p">())</span>
+        <span class="n">_omex</span> <span class="o">=</span> <span class="p">(</span><span class="n">omex_filepath</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="nb">open</span><span class="p">(</span><span class="n">omex_filepath</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">),</span> <span class="s1">&#39;application/octet-stream&#39;</span><span class="p">)</span>
+        <span class="n">_report</span> <span class="o">=</span> <span class="p">(</span><span class="n">expected_results</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="nb">open</span><span class="p">(</span><span class="n">expected_results</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">),</span> <span class="s1">&#39;application/octet-stream&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">expected_results</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">sims</span> <span class="o">=</span> <span class="n">simulators</span> <span class="ow">or</span> <span class="p">[</span><span class="s1">&#39;amici&#39;</span><span class="p">,</span> <span class="s1">&#39;copasi&#39;</span><span class="p">,</span> <span class="s1">&#39;tellurium&#39;</span><span class="p">]</span>
+
+        <span class="n">encoder_fields</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;uploaded_file&#39;</span><span class="p">:</span> <span class="n">_omex</span><span class="p">,</span>
+            <span class="s1">&#39;expected_results&#39;</span><span class="p">:</span> <span class="n">_report</span>
+        <span class="p">}</span>
+
+        <span class="n">query_params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;simulators&#39;</span><span class="p">:</span> <span class="n">sims</span><span class="p">,</span>
+            <span class="s1">&#39;include_outputs&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">include_outputs</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span>
+            <span class="s1">&#39;comparison_id&#39;</span><span class="p">:</span> <span class="n">_id</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">selection_list</span><span class="p">:</span>
+            <span class="n">query_params</span><span class="p">[</span><span class="s1">&#39;selection_list&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">selection_list</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rTol</span><span class="p">:</span>
+            <span class="n">query_params</span><span class="p">[</span><span class="s1">&#39;rTol&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">rTol</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">aTol</span><span class="p">:</span>
+            <span class="n">query_params</span><span class="p">[</span><span class="s1">&#39;aTol&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">aTol</span><span class="p">)</span>
+
+        <span class="n">multidata</span> <span class="o">=</span> <span class="n">MultipartEncoder</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="n">encoder_fields</span><span class="p">)</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="n">multidata</span><span class="o">.</span><span class="n">content_type</span><span class="p">}</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">multidata</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">query_params</span><span class="p">)</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">submitted_jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">output</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">RequestError</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Verifier.verify_sbml">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.verifier.Verifier.verify_sbml">[docs]</a>
+    <span class="k">def</span> <span class="nf">verify_sbml</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">entrypoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">start</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">end</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="n">steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="n">simulators</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">include_outputs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">comparison_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">expected_results</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">rTol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">aTol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">selection_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">_steady_state</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">RequestError</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Submit a new uniform time course comparison job to the service and return confirmation of job submission.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - **entrypoint**: `str`: One of either: a path to a sbml OR an antimony model/string that can be converted to SBML. NOTE: Currently, only SBML is supported as an entrypoint.</span>
+<span class="sd">            - **start**: `int`: The start time of the time course to include in comparison.</span>
+<span class="sd">            - **end**: `int`: The end of the comparison job in seconds.</span>
+<span class="sd">            - **steps**: `int`: The number of steps in the comparison job.</span>
+<span class="sd">            - **simulators**: `List[str], optional`: The list of simulators to include in comparison. Defaults to all utc simulators (amici, copasi, tellurium)</span>
+<span class="sd">            - **include_outputs**: `bool, optional`: Whether to include the output data used to calculate comparison in the job results on result fetch. Defaults to True.</span>
+<span class="sd">            - **comparison_id**: `str, optional`: The unique identifier for the comparison job. Defaults to None. If `None` is passed, a comparison id of `bio_check-request-&lt;UUID&gt;` is generated.</span>
+<span class="sd">            - **expected_results**: `str, optional`: The path to the ground expected_results report file to include in comparison. Defaults to None.</span>
+<span class="sd">            - **rTol**: `float, optional`: The relative tolerance used to determine the relative distance in a pairwise comparison.</span>
+<span class="sd">            - **aTol**: `float, optional`: The absolute tolerance used to determine the absolute distance in a pairwise comparison.</span>
+<span class="sd">            - **selection_list**: `List[str], optional`: Observables to include in the output. If passed, all observable names NOT in this list will be excluded. Defaults to `None` (all observables).</span>
+<span class="sd">            - **_steady_state**: `bool, optional`: Whether to include the steady state analysis job. NOTE: This feature will currently throw an error as it is not yet implemented.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dictionary containing the job submission results. **Note**: the return status should read `PENDING`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">_steady_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;The steady state analysis of model files is not yet implemented and currently under development.&quot;</span><span class="p">)</span>
+
+        <span class="n">endpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_endpoint</span><span class="p">(</span><span class="s1">&#39;verify-sbml&#39;</span><span class="p">)</span>
+
+        <span class="c1"># TODO: fix and remove this</span>
+        <span class="c1"># raise NotImplementedError(&quot;Submission of jobs with a SBML file is currently under development.&quot;)</span>
+
+        <span class="c1"># handle entrypoint as antimony</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">entrypoint</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.xml&#39;</span><span class="p">):</span>
+            <span class="n">dest</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+            <span class="n">entrypoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_antimony_to_sbml</span><span class="p">(</span><span class="n">entrypoint</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+
+        <span class="n">sbml_fp</span> <span class="o">=</span> <span class="p">(</span><span class="n">entrypoint</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="nb">open</span><span class="p">(</span><span class="n">entrypoint</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">),</span> <span class="s1">&#39;application/octet-stream&#39;</span><span class="p">)</span>
+        <span class="n">_report</span> <span class="o">=</span> <span class="p">(</span><span class="n">expected_results</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="nb">open</span><span class="p">(</span><span class="n">expected_results</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">),</span> <span class="s1">&#39;application/octet-stream&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">expected_results</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="n">_id</span> <span class="o">=</span> <span class="n">comparison_id</span> <span class="ow">or</span> <span class="s2">&quot;bio_check-request-&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid4</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">simulators</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">simulators</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;copasi&quot;</span><span class="p">,</span> <span class="s2">&quot;tellurium&quot;</span><span class="p">]</span>
+
+        <span class="c1"># create encoder fields</span>
+        <span class="n">encoder_fields</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;uploaded_file&#39;</span><span class="p">:</span> <span class="n">sbml_fp</span><span class="p">,</span>
+            <span class="s1">&#39;expected_results&#39;</span><span class="p">:</span> <span class="n">_report</span>
+        <span class="p">}</span>
+
+        <span class="n">query_params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;simulators&#39;</span><span class="p">:</span> <span class="n">simulators</span><span class="p">,</span>  <span class="c1"># &#39;,&#39;.join(simulators),</span>
+            <span class="s1">&#39;include_outputs&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">include_outputs</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span>
+            <span class="s1">&#39;comparison_id&#39;</span><span class="p">:</span> <span class="n">_id</span><span class="p">,</span>
+            <span class="s1">&#39;start&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">start</span><span class="p">),</span>
+            <span class="s1">&#39;end&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">end</span><span class="p">),</span>
+            <span class="s1">&#39;steps&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">steps</span><span class="p">)</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">selection_list</span><span class="p">:</span>
+            <span class="n">query_params</span><span class="p">[</span><span class="s1">&#39;selection_list&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">selection_list</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rTol</span><span class="p">:</span>
+            <span class="n">query_params</span><span class="p">[</span><span class="s1">&#39;rTol&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">rTol</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">aTol</span><span class="p">:</span>
+            <span class="n">query_params</span><span class="p">[</span><span class="s1">&#39;aTol&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">aTol</span><span class="p">)</span>
+
+        <span class="n">multidata</span> <span class="o">=</span> <span class="n">MultipartEncoder</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="n">encoder_fields</span><span class="p">)</span>
+        <span class="c1"># TODO: do we need to change the headers?</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="n">multidata</span><span class="o">.</span><span class="n">content_type</span><span class="p">}</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">multidata</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">query_params</span><span class="p">)</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">submitted_jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">output</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">RequestError</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Verifier.get_rmse">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.verifier.Verifier.get_rmse">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_rmse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get root-mean-square error scoring for all simulators involved in the last completed verification job.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - **job_id**: `str`: The unique identifier for the verification job.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dictionary mapping of simulator names to their respective root-mean-square error scores.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;content&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;results&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;rmse&#39;</span><span class="p">,</span> <span class="p">{})</span> 
+        <span class="k">except</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">traceback</span>
+            <span class="n">tb_str</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+            <span class="n">error_message</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Traceback:</span><span class="se">\n</span><span class="si">{</span><span class="n">tb_str</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;error&#39;</span><span class="p">:</span> <span class="n">error_message</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="Verifier.get_compatible">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.verifier.Verifier.get_compatible">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_compatible</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">versions</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="o">...</span><span class="p">]],</span> <span class="n">RequestError</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all simulators and optionally their versions for a given file. The File is expected to be either an OMEX/COMBINE archive or SBML file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - **file**: `str`: The path to the file to be checked.</span>
+<span class="sd">            - **versions**: `bool`: Whether to return the compatible version of the given compatible simulator. Defaults to `False`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dictionary of compatible simulators and the referenced file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">endpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_endpoint</span><span class="p">(</span><span class="s1">&#39;get-compatible-for-verification&#39;</span><span class="p">)</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="nb">open</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">),</span> <span class="s1">&#39;application/octet-stream&#39;</span><span class="p">)</span>
+
+        <span class="n">encoder_fields</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;uploaded_file&#39;</span><span class="p">:</span> <span class="n">fp</span><span class="p">}</span>
+        <span class="n">query_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;versions&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">versions</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()}</span>
+
+        <span class="n">multidata</span> <span class="o">=</span> <span class="n">MultipartEncoder</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="n">encoder_fields</span><span class="p">)</span>
+        <span class="c1"># TODO: do we need to change the headers?</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="n">multidata</span><span class="o">.</span><span class="n">content_type</span><span class="p">}</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">multidata</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">query_params</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+
+            <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">sim_data</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;simulators&#39;</span><span class="p">]:</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">sim_data</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+                <span class="n">version</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;version&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">version</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">])</span>
+                    <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">output</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">RequestError</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span></div>
+
+
+    <span class="c1"># -- visualizations</span>
+<div class="viewcode-block" id="Verifier.visualize_observables">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.verifier.Verifier.visualize_observables">[docs]</a>
+    <span class="nd">@save_plot</span>
+    <span class="k">def</span> <span class="nf">visualize_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">hspace</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span><span class="p">,</span> <span class="n">use_grid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">save_dest</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Visualize simulation output (observables) data, not comparison data, with subplots for each species.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - **job_id**: `str`: job id for the simulation observable output you wish to visualize.</span>
+<span class="sd">            - **hspace**: `float`: horizontal spacing between subplots. Defaults to 0.25.</span>
+<span class="sd">            - **use_grid**: `bool`: whether to use a grid for each subplot. Defaults to False.</span>
+<span class="sd">            - **save_dest**: `str`: path to save the figure. If this value is passed, the figure will be saved in pdf format to this location.</span>
+
+<span class="sd">         Returns:</span>
+<span class="sd">            `Tuple[matplotlib.Figure, Dict]` of matplotlib Figure and simulation observables indexed by simulator</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            `IOError`: If `job_id` does not contain a &#39;results&#39; field.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># grab output from job id</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+
+        <span class="c1"># extract the list of simulators from the `output_data` for one observable</span>
+        <span class="n">species_data_content</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;content&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;results&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">species_data_content</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The job for </span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> is either not ready or has an error. Please check the output.&quot;</span><span class="p">)</span>
+        <span class="n">excluded_observables</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;comparison_id&#39;</span><span class="p">,</span> <span class="s1">&#39;rmse&#39;</span><span class="p">,</span> <span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="s1">&#39;Time&#39;</span><span class="p">,</span> <span class="s1">&#39;data_generator_time&#39;</span><span class="p">,</span> <span class="s1">&#39;Time (dimensionless)&#39;</span><span class="p">]</span>
+        <span class="n">observables</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">species_data_content</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">excluded_observables</span><span class="p">]</span>
+        <span class="n">first_observable</span> <span class="o">=</span> <span class="n">species_data_content</span><span class="p">[</span><span class="n">observables</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">simulators</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">first_observable</span><span class="p">[</span><span class="s1">&#39;output_data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="c1"># post-process to handle any strings (errors)</span>
+        <span class="k">for</span> <span class="n">sim</span> <span class="ow">in</span> <span class="n">simulators</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">first_observable</span><span class="p">[</span><span class="s1">&#39;output_data&#39;</span><span class="p">][</span><span class="n">sim</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">simulators</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+        
+        <span class="c1"># count post processed sims</span>
+        <span class="n">n_simulators</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">simulators</span><span class="p">)</span>
+
+        <span class="c1"># create subplots</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">n_simulators</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">n_simulators</span><span class="p">))</span>
+
+        <span class="c1"># if only one simulator, `axes` won&#39;t be an array, so make it an array</span>
+        <span class="k">if</span> <span class="n">n_simulators</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">axes</span> <span class="o">=</span> <span class="p">[</span><span class="n">axes</span><span class="p">]</span>
+
+        <span class="n">obs</span> <span class="o">=</span> <span class="p">{</span><span class="n">observable</span><span class="p">:</span> <span class="p">{}</span> <span class="k">for</span> <span class="n">observable</span> <span class="ow">in</span> <span class="n">observables</span><span class="p">}</span>
+        <span class="c1"># iterate over simulators and plot each observable (by iterating over observables)</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">simulator</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">simulators</span><span class="p">):</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">observable</span> <span class="ow">in</span> <span class="n">observables</span><span class="p">:</span>
+                <span class="n">value_data</span> <span class="o">=</span> <span class="n">species_data_content</span><span class="p">[</span><span class="n">observable</span><span class="p">][</span><span class="s1">&#39;output_data&#39;</span><span class="p">][</span><span class="n">simulator</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value_data</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                    <span class="k">continue</span> 
+                <span class="n">obs</span><span class="p">[</span><span class="n">observable</span><span class="p">][</span><span class="n">simulator</span><span class="p">]</span> <span class="o">=</span> <span class="n">value_data</span>
+                <span class="n">sns</span><span class="o">.</span><span class="n">lineplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">value_data</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">observable</span><span class="p">)</span>
+
+            <span class="n">sim</span> <span class="o">=</span> <span class="n">simulator</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">simulator</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">simulator</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">sim</span><span class="si">}</span><span class="s2"> Observable Results&quot;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Value&quot;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">use_grid</span><span class="p">)</span>
+
+            <span class="c1"># hide the x-axis tick labels</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">([])</span>
+
+        <span class="c1"># adjust layout for better spacing</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">hspace</span><span class="o">=</span><span class="n">hspace</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">obs</span></div>
+
+
+<div class="viewcode-block" id="Verifier.visualize_rmse">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.verifier.Verifier.visualize_rmse">[docs]</a>
+    <span class="nd">@save_plot</span>
+    <span class="k">def</span> <span class="nf">visualize_rmse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">fig_dimensions</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">color_mapping</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">save_dest</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Visualize the root-mean-squared error between simulator verification outputs as a heatmap.</span>
+
+<span class="sd">        :param job_id: (`str`) verification job id. This value can be easily derived from either of `Verifier`&#39;s `.verify_...` methods.</span>
+<span class="sd">        :param fig_dimensions: (`Tuple[int, int], optional`) The value to use as the `figsize` parameter for a call to `matplotlib.pyplot.figure()`. If `None` is passed, default to (8, 6).</span>
+<span class="sd">        :param color_mapping: (`List[str], optional`) list of colors to use for each simulator in the grid. Defaults to None.</span>
+<span class="sd">        :param save_dest: `(str`) destination at which to save figure. Defaults to `None`.</span>
+
+<span class="sd">        :return: matplotlib Figure and simulator RMSE scores</span>
+<span class="sd">        :rtype: `Tuple[matplotlib.Figure, Dict]`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># extract data</span>
+        <span class="n">rmse_matrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_rmse</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">rmse_matrix</span> <span class="ow">or</span> <span class="s1">&#39;error&#39;</span> <span class="ow">in</span> <span class="n">rmse_matrix</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The job for </span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> is either not ready or has an error in rmse scoring. Please check the output.&quot;</span><span class="p">)</span>
+
+        <span class="n">simulators</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">rmse_matrix</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">n_simulators</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">simulators</span><span class="p">)</span>
+
+        <span class="c1"># extract rmse data and replace None with np.nan if needed</span>
+        <span class="n">rmse_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sim_name</span><span class="p">,</span> <span class="n">scores</span> <span class="ow">in</span> <span class="n">rmse_matrix</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">score_vals</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">score_vals</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">score_vals</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                        <span class="n">score_vals</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+                <span class="n">rmse_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">score_vals</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">color_mapping</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">color_mapping</span> <span class="o">=</span> <span class="s2">&quot;Blues&quot;</span>
+
+        <span class="c1"># set up figure</span>
+        <span class="n">dimensions</span> <span class="o">=</span> <span class="n">fig_dimensions</span> <span class="ow">or</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">dimensions</span><span class="p">)</span>
+        <span class="n">sns</span><span class="o">.</span><span class="n">heatmap</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">rmse_data</span><span class="p">,</span>
+            <span class="n">annot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">xticklabels</span><span class="o">=</span><span class="n">simulators</span><span class="p">,</span>
+            <span class="n">yticklabels</span><span class="o">=</span><span class="n">simulators</span><span class="p">,</span>
+            <span class="n">cmap</span><span class="o">=</span><span class="n">color_mapping</span><span class="p">,</span>
+            <span class="n">vmin</span><span class="o">=-</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">vmax</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">linewidths</span><span class="o">=</span><span class="mi">1</span>
+        <span class="p">)</span>
+        <span class="c1"># set up plot annotations</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Pairwise Root Mean Square Error Between Simulators&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">simulators</span><span class="p">,</span> <span class="n">rmse_data</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Verifier.visualize_comparison">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.verifier.Verifier.visualize_comparison">[docs]</a>
+    <span class="k">def</span> <span class="nf">visualize_comparison</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">simulators</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">comparison_type</span><span class="o">=</span><span class="s1">&#39;proximity&#39;</span><span class="p">,</span> <span class="n">color_mapping</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Figure</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Visualize simulation comparison matrix in the form of a heatmap.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - **data**: `dict`: simulation output data</span>
+<span class="sd">            - **simulators**: `list[str]`: list of simulators</span>
+<span class="sd">            - **comparison_type**: `str`: type of comparison. Defaults to `&#39;proximity&#39;`.</span>
+<span class="sd">            - **color_mapping**: `list[str]`: list of colors to use for True and False responses. Defaults to None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            `matplotlib.pyplot.Figure` of a plot grid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">species_data_content</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;content&#39;</span><span class="p">][</span><span class="s1">&#39;results&#39;</span><span class="p">]</span>
+        <span class="n">species_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">species_data_content</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">num_species</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">species_names</span><span class="p">)</span>
+
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">num_species</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">num_species</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">color_mapping</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">true_color</span> <span class="o">=</span> <span class="n">color_mapping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">false_color</span> <span class="o">=</span> <span class="n">color_mapping</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">true_color</span> <span class="o">=</span> <span class="s1">&#39;#1E3A8A&#39;</span>  <span class="c1"># dark blue</span>
+            <span class="n">false_color</span> <span class="o">=</span> <span class="s1">&#39;#D97706&#39;</span>  <span class="c1"># dark orange</span>
+
+        <span class="k">if</span> <span class="n">num_species</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">axes</span> <span class="o">=</span> <span class="p">[</span><span class="n">axes</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">species_name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">species_names</span><span class="p">):</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">species_data</span> <span class="o">=</span> <span class="n">species_data_content</span><span class="p">[</span><span class="n">species_name</span><span class="p">]</span>
+            <span class="n">comparison_data</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">col</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">species_data</span><span class="p">[</span><span class="n">comparison_type</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">())]</span>
+            <span class="n">sns</span><span class="o">.</span><span class="n">heatmap</span><span class="p">(</span>
+                <span class="n">data</span><span class="o">=</span><span class="n">comparison_data</span><span class="p">,</span>
+                <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+                <span class="n">annot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">xticklabels</span><span class="o">=</span><span class="n">simulators</span><span class="p">,</span>
+                <span class="n">yticklabels</span><span class="o">=</span><span class="n">simulators</span><span class="p">,</span>
+                <span class="n">cmap</span><span class="o">=</span><span class="p">[</span><span class="n">false_color</span><span class="p">,</span> <span class="n">true_color</span><span class="p">],</span>
+                <span class="n">linewidths</span><span class="o">=</span><span class="mi">1</span>
+            <span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species_name</span><span class="si">}</span><span class="s2"> comparison matrix&quot;</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">fig</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_write_antimony_to_sbml</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">antimony_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert an antimony model to SBML. To be used as an entrypoint validator for `Verifier().verify_sbml()`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - **antimony_string**: `str`: Antimony model to convert.</span>
+<span class="sd">            - **dest**: `str`: Destination path to save the SBML file.</span>
+<span class="sd">            - **model_name**: `str`: Model name to use for the converted model file. Defaults to `None` (a generic `&#39;model.xml&#39;`).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Path to the written SBML file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ant_ret</span> <span class="o">=</span> <span class="n">antimony</span><span class="o">.</span><span class="n">loadAntimonyString</span><span class="p">(</span><span class="n">antimony_string</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ant_ret</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;This antimony string cannot be converted to SBML by Antimony: </span><span class="si">{</span><span class="n">antimony_string</span><span class="si">}</span><span class="s2">. Please check the model and try again.&quot;</span><span class="p">)</span>
+
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">model_name</span> <span class="ow">or</span> <span class="s1">&#39;model.xml&#39;</span>
+        <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="n">sbml_ret</span> <span class="o">=</span> <span class="n">antimony</span><span class="o">.</span><span class="n">writeSBMLFile</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">file_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sbml_ret</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">file_path</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;This SBML model: </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> cannot be written to </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">. Please check your paths and try again.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="VerificationResult">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.verifier.VerificationResult">[docs]</a>
+<span class="k">class</span> <span class="nc">VerificationResult</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;content&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;content&#39;</span><span class="p">)})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;content&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;job_id&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verifier</span> <span class="o">=</span> <span class="n">Verifier</span><span class="p">()</span>
+
+<div class="viewcode-block" id="VerificationResult.get_comparison">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.verifier.VerificationResult.get_comparison">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_comparison</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save_dest</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">fig_dimensions</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">color_mapping</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Visualize the root-mean-squared error between simulator verification outputs as a heatmap.</span>
+
+<span class="sd">        :param save_dest: `(str`) destination at which to save figure. Defaults to `None`.</span>
+<span class="sd">        :param fig_dimensions: (`Tuple[int, int], optional`) The value to use as the `figsize` parameter for a call to `matplotlib.pyplot.figure()`. If `None` is passed, default to (8, 6).</span>
+<span class="sd">        :param color_mapping: (`List[str], optional`) list of colors to use for each simulator in the grid. Defaults to None.</span>
+<span class="sd">        </span>
+
+<span class="sd">        :return: matplotlib Figure and simulator RMSE scores</span>
+<span class="sd">        :rtype: `Tuple[matplotlib.Figure, Dict]`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">verifier</span><span class="o">.</span><span class="n">visualize_rmse</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">save_dest</span><span class="o">=</span><span class="n">save_dest</span><span class="p">,</span> <span class="n">fig_dimensions</span><span class="o">=</span><span class="n">fig_dimensions</span><span class="p">,</span> <span class="n">color_mapping</span><span class="o">=</span><span class="n">color_mapping</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VerificationResult.get_output_observables">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.verifier.VerificationResult.get_output_observables">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_output_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save_dest</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">hspace</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span><span class="p">,</span> <span class="n">use_grid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Visualize simulation output (observables) data, not comparison data, with subplots for each species.</span>
+
+<span class="sd">        :param save_dest: (`str`) path to save the figure. If this value is passed, the figure will be saved in pdf format to this location.</span>
+<span class="sd">        :param hspace: (`float`) horizontal spacing between subplots. Defaults to 0.25.</span>
+<span class="sd">        :param use_grid: (`bool`) whether to use a grid for each subplot. Defaults to False.</span>
+<span class="sd">        </span>
+<span class="sd">        :return: matplotlib Figure and simulation observables indexed by simulator</span>
+<span class="sd">        :rtype: `Tuple[matplotlib.Figure, Dict]` </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">verifier</span><span class="o">.</span><span class="n">visualize_observables</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">save_dest</span><span class="o">=</span><span class="n">save_dest</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="n">hspace</span><span class="p">,</span> <span class="n">use_grid</span><span class="o">=</span><span class="n">use_grid</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="c1"># tests</span>
+
+<span class="k">def</span> <span class="nf">test_verifier</span><span class="p">():</span>
+    <span class="c1"># TODO: replace this</span>
+    <span class="n">verifier</span> <span class="o">=</span> <span class="n">Verifier</span><span class="p">()</span>
+    <span class="n">simulators</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;copasi&#39;</span><span class="p">,</span> <span class="s1">&#39;tellurium&#39;</span><span class="p">]</span>
+    <span class="n">sbml_fp</span> <span class="o">=</span> <span class="s2">&quot;../model-examples/sbml-core/Elowitz-Nature-2000-Repressilator/BIOMD0000000012_url.xml&quot;</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">steps</span> <span class="o">=</span> <span class="mi">100</span>
+
+    <span class="n">sbml_submission</span> <span class="o">=</span> <span class="n">verifier</span><span class="o">.</span><span class="n">verify_sbml</span><span class="p">(</span><span class="n">entrypoint</span><span class="o">=</span><span class="n">sbml_fp</span><span class="p">,</span> <span class="n">steps</span><span class="o">=</span><span class="n">steps</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="n">end</span><span class="p">,</span> <span class="n">simulators</span><span class="o">=</span><span class="n">simulators</span><span class="p">,</span> <span class="n">comparison_id</span><span class="o">=</span><span class="s2">&quot;notebook_test1&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">sbml_submission</span><span class="p">)</span>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Alexander A. Patrie.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

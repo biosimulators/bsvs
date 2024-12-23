@@ -1,0 +1,426 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>bio_compose.data_model &mdash; BioCompose 0.5.5 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=45def3bc"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            BioCompose
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../verification.html">Verification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../simulation_runs.html">Simulation Runs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cli.html">Command Line Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">API Documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">BioCompose</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">bio_compose.data_model</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for bio_compose.data_model</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="kn">import</span> <span class="nn">time</span> 
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">warnings</span> <span class="kn">import</span> <span class="n">warn</span> 
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">asdict</span><span class="p">,</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span>
+
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">matplotlib.backends.backend_pdf</span> <span class="kn">import</span> <span class="n">PdfPages</span>
+<span class="kn">from</span> <span class="nn">matplotlib.figure</span> <span class="kn">import</span> <span class="n">Figure</span>
+
+
+<div class="viewcode-block" id="RequestError">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.RequestError">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">RequestError</span><span class="p">:</span>
+    <span class="n">error</span><span class="p">:</span> <span class="nb">str</span>
+
+<div class="viewcode-block" id="RequestError.to_dict">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.RequestError.to_dict">[docs]</a>
+    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">asdict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="DynamicJson">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.DynamicJson">[docs]</a>
+<span class="k">class</span> <span class="nc">DynamicJson</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Dynamically create a JSON-like object from a dictionary/mapping of any shape.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">DynamicData</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="si">}</span><span class="s2">&quot;</span></div>
+
+    
+
+<div class="viewcode-block" id="Api">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.Api">[docs]</a>
+<span class="k">class</span> <span class="nc">Api</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class inherited by the domain-specific polymorphisms native to this package: ``verifier.Verifier``, ``composer.Composer``, and ``runner.SimulationRunner``.</span>
+
+<span class="sd">    Params:</span>
+<span class="sd">        - **endpoint_root**: `str`: default base endpoint used by this packaging.</span>
+<span class="sd">        - **data**: `dict`: default historical collection of data fetched by the given instance of this class.</span>
+<span class="sd">        - **submitted_jobs**: `list[dict]`: default list of jobs submitted by the given instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generic base instance which is inherited by any flavor (tag group) of the BioCompose REST API. Polymorphism of this base class should pertain entirely to the tag group domain with which it is associated (e.g., &#39;execute-simulations&#39;, &#39;verification&#39;, etc.)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">endpoint_root</span> <span class="o">=</span> <span class="s2">&quot;https://biochecknet.biosimulations.org&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_test_root</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submitted_jobs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_output</span> <span class="o">=</span> <span class="p">{}</span>
+    
+    <span class="k">def</span> <span class="nf">_format_endpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_piece</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">endpoint_root</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">path_piece</span><span class="si">}</span><span class="s1">&#39;</span>
+    
+    <span class="k">def</span> <span class="nf">_execute_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">multidata</span><span class="p">,</span> <span class="n">query_params</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># submit request</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">multidata</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">query_params</span><span class="p">)</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            
+            <span class="c1"># check/handle output</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">submitted_jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">output</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">RequestError</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_check_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resp</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Request failed:</span><span class="se">\n</span><span class="si">{</span><span class="n">resp</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">resp</span><span class="o">.</span><span class="n">text</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">_test_root</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">resp</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">endpoint_root</span><span class="p">)</span>
+            <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;bio-check-error&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;A connection to that endpoint could not be established: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_poll_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">submission</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">job_id</span> <span class="o">=</span> <span class="n">submission</span><span class="p">[</span><span class="s1">&#39;job_id&#39;</span><span class="p">]</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">100</span><span class="p">:</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;content&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;results&#39;</span><span class="p">:</span> <span class="s1">&#39;timeout&#39;</span><span class="p">}}</span>
+                <span class="k">break</span> 
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">)</span>    
+            <span class="n">status</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;content&#39;</span><span class="p">][</span><span class="s1">&#39;status&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="s1">&#39;COMPLETED&#39;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Job is still: </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">result</span>
+                <span class="k">break</span> 
+                
+        <span class="k">return</span> <span class="n">output</span>
+        
+<div class="viewcode-block" id="Api.get_output">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.Api.get_output">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">download_dest</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">]],</span> <span class="n">RequestError</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Fetch the current state of the job referenced with `job_id`. If the job has not yet been processed, it will return a `status` of `PENDING`. If the job is being processed by the service at the time of return, `status` will read `IN_PROGRESS`. If the job is complete, the job state will be returned, optionally with included result data (either JSON or downloadable file data).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - **job_id**: `str`: The id of the job submission.</span>
+<span class="sd">            - **download_dest**: `Optional[str]`: Optional directory where the file will be downloaded if the output is a file. Defaults to the current directory.</span>
+<span class="sd">            - **filename**: `Optional[str]`: Optional filename to save the downloaded file as if the output is a file. If not provided, the filename will be extracted from the Content-Disposition header.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            If the output is a JSON response, return the parsed JSON as a dictionary. If the output is a file, download the file and return the filepath. If an error occurs, return a RequestError.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">piece</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;get-output/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">endpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_endpoint</span><span class="p">(</span><span class="n">piece</span><span class="p">)</span>
+
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Accept&#39;</span><span class="p">:</span> <span class="s1">&#39;application/json&#39;</span><span class="p">}</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+            
+            <span class="c1"># Check the content type of the response</span>
+            <span class="n">content_type</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">)</span>
+            
+            <span class="c1"># case: response is raw data</span>
+            <span class="k">if</span> <span class="s1">&#39;application/json&#39;</span> <span class="ow">in</span> <span class="n">content_type</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_output</span> <span class="o">=</span> <span class="n">data</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
+                <span class="k">return</span> <span class="n">data</span>
+            <span class="c1"># otherwise: response is downloadable file</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">content_disposition</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Content-Disposition&#39;</span><span class="p">)</span>
+                
+                <span class="c1"># extract the filename from the Content-Disposition header</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span> <span class="ow">and</span> <span class="n">content_disposition</span><span class="p">:</span>
+                    <span class="n">filename</span> <span class="o">=</span> <span class="n">content_disposition</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;filename=&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span>
+                <span class="c1"># fallback to a default filename if none is provided or extracted</span>
+                <span class="k">elif</span> <span class="ow">not</span> <span class="n">filename</span><span class="p">:</span>
+                    <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s1">_output&#39;</span>
+
+                <span class="c1"># ensure the download directory exists</span>
+                <span class="c1"># os.makedirs(download_dest, exist_ok=True)</span>
+                
+                <span class="n">filepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">download_dest</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+
+                <span class="c1"># Save the file</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+                
+                <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;results_file&#39;</span><span class="p">:</span> <span class="n">filepath</span><span class="p">}</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_output</span> <span class="o">=</span> <span class="n">data</span>
+
+                <span class="k">return</span> <span class="n">data</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">traceback</span>
+            <span class="n">tb_str</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">RequestError</span><span class="p">(</span><span class="n">error</span><span class="o">=</span><span class="n">tb_str</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Api.get_job_status">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.Api.get_job_status">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_job_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;content&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;status&#39;</span><span class="p">)</span></div>
+
+
+    <span class="c1"># -- csv and observables</span>
+<div class="viewcode-block" id="Api.get_observables">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.Api.get_observables">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the observables passed within `data` as a flattened dataframe in which each column is: `&lt;SPECIES NAME&gt;_&lt;SIMULATOR&gt;` for each species name and simulator involved within the comparison.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - **data**: `Dict`: simulation output data generated from `Verifier.get_verify_output()`. This method assumes a resulting job status from the aforementioned `get` method as being `&#39;COMPLETED&#39;`. Tip: if the `data` does not yet have a completed status, try again.</span>
+<span class="sd">            - **simulators**: `List[str]`: list of simulators to include in the dataframe.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            pd.DataFrame of observables.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dataframe</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">species_data_content</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;content&#39;</span><span class="p">][</span><span class="s1">&#39;results&#39;</span><span class="p">]</span>
+        <span class="n">species_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">species_data_content</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">num_species</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">species_names</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">species_name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">species_names</span><span class="p">):</span>
+            <span class="c1"># for j, simulator_name in enumerate(simulators):</span>
+            <span class="n">species_data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;content&#39;</span><span class="p">][</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="n">species_name</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">species_data</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">output_data</span> <span class="o">=</span> <span class="n">species_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_data&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">output_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">simulator_name</span> <span class="ow">in</span> <span class="n">output_data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="n">simulator_output</span> <span class="o">=</span> <span class="n">output_data</span><span class="p">[</span><span class="n">simulator_name</span><span class="p">]</span>
+                        <span class="n">colname</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species_name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">simulator_name</span><span class="si">}</span><span class="s2">&quot;</span>
+                        <span class="n">dataframe</span><span class="p">[</span><span class="n">colname</span><span class="p">]</span> <span class="o">=</span> <span class="n">simulator_output</span>
+
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">dataframe</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Api.export_plot">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.Api.export_plot">[docs]</a>
+    <span class="k">def</span> <span class="nf">export_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fig</span><span class="p">:</span> <span class="n">Figure</span><span class="p">,</span> <span class="n">save_dest</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save a `matplotlib.pyplot.Figure` instance generated from one of this class&#39; `visualize_` methods, as a PDF file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - **fig**: `matplotlib.pyplot.Figure`: Figure instance generated from either `Verifier.visualize_comparison()` or `Verifier.visualize_outputs()`.</span>
+<span class="sd">            - **save_dest**: `str`: Destination path to save the plot to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">PdfPages</span><span class="p">(</span><span class="n">save_dest</span><span class="p">)</span> <span class="k">as</span> <span class="n">pdf</span><span class="p">:</span>
+            <span class="n">pdf</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Api.export_csv">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.Api.export_csv">[docs]</a>
+    <span class="k">def</span> <span class="nf">export_csv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">save_dest</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Export the content passed in `data` as a CSV file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - **data**: `Dict`: simulation output data generated from `Verifier.get_verify_output()`.</span>
+<span class="sd">            - **save_dest**: `str`: Destination path to save the CSV file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_observables</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">save_dest</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Api.read_observables">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.Api.read_observables">[docs]</a>
+    <span class="k">def</span> <span class="nf">read_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">csv_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read in a dataframe generated from `Verifier.export_csv()`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">csv_path</span><span class="p">)</span></div>
+
+
+    <span class="c1"># -- tools</span>
+<div class="viewcode-block" id="Api.select_observables">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.Api.select_observables">[docs]</a>
+    <span class="k">def</span> <span class="nf">select_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">observables</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select data from the input data that is passed which should be formatted such that the data has mappings of observable names to dicts in which the keys are the simulator names and the values are arrays. The data must have content accessible at: `data[&#39;content&#39;][&#39;results&#39;]`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">obs_data</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;content&#39;</span><span class="p">][</span><span class="s1">&#39;results&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">observables</span><span class="p">:</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">obs_data</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s1">&#39;content&#39;</span><span class="p">][</span><span class="s1">&#39;results&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+
+        <span class="k">return</span> <span class="n">outputs</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="save_plot">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.save_plot">[docs]</a>
+<span class="k">def</span> <span class="nf">save_plot</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decorator for `Api().visualize_` methods.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        - **func**: `Callable`: Decorated `Api().visualize_` method. Currently only implemented in `Verifier()`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">save_dest</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;save_dest&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">save_dest</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">dest</span> <span class="o">=</span> <span class="n">save_dest</span> <span class="o">+</span> <span class="s1">&#39;.pdf&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">export_plot</span><span class="p">(</span><span class="n">fig</span><span class="o">=</span><span class="n">fig</span><span class="p">,</span> <span class="n">save_dest</span><span class="o">=</span><span class="n">dest</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">data</span>
+        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>   
+            <span class="n">warn</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="k">return</span> <span class="p">{}</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span></div>
+
+
+
+<div class="viewcode-block" id="fetch_job">
+<a class="viewcode-back" href="../../bio_compose.html#bio_compose.data_model.fetch_job">[docs]</a>
+<span class="k">def</span> <span class="nf">fetch_job</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decorator for `Api().visualize_` methods.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        - **func**: `Callable`: Decorated `Api().visualize_` method. Currently only implemented in `Verifier()`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">output</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;content&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;status&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;COMPLETED&#39;</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">output</span>
+    <span class="k">return</span> <span class="n">wrapper</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Alexander A. Patrie.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
