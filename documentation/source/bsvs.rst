@@ -1,55 +1,55 @@
-bio_compose
+bsvs
 ===========
 
-.. automodule:: bio_compose.api
+.. automodule:: bsvs.api
    :members:
    :undoc-members:
    :show-inheritance:
 
-bio\_compose.bundles
+bsvs.bundles
 ---------------------------
 
-.. automodule:: bio_compose.bundles
+.. automodule:: bsvs.bundles
    :members:
    :undoc-members:
    :show-inheritance:
 
-bio\_compose.composer
+bsvs.composer
 ----------------------------
 
-.. automodule:: bio_compose.composer
+.. automodule:: bsvs.composer
    :members:
    :undoc-members:
    :show-inheritance:
 
-bio\_compose.data\_model
+bsvs.data\_model
 -------------------------------
 
-.. automodule:: bio_compose.data_model
+.. automodule:: bsvs.data_model
    :members:
    :undoc-members:
    :show-inheritance:
 
-bio\_compose.processing\_tools
+bsvs.processing\_tools
 -------------------------------------
 
-.. automodule:: bio_compose.processing_tools
+.. automodule:: bsvs.processing_tools
    :members:
    :undoc-members:
    :show-inheritance:
 
-bio\_compose.runner
+bsvs.runner
 --------------------------
 
-.. automodule:: bio_compose.runner
+.. automodule:: bsvs.runner
    :members:
    :undoc-members:
    :show-inheritance:
 
-bio\_compose.verifier
+bsvs.verifier
 ----------------------------
 
-.. automodule:: bio_compose.verifier
+.. automodule:: bsvs.verifier
    :members:
    :undoc-members:
    :show-inheritance:

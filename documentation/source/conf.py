@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.abspath('../../bsvs'))
 
 
-project = 'bsvs: Biological Simulation Verification Service'
+project = 'bsvs: A high-level Python client for the Biological Simulation Verification Service REST API.'
 copyright = '2024, Alexander A. Patrie'
 author = 'Alexander A. Patrie'
 release = '0.0.1'

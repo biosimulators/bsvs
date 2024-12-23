@@ -1,18 +1,19 @@
 [tool.poetry]
-name = "bsvs"
+name = "bio-compose-data-generator"
 version = "0.0.1"
-description = "A high-level Python client for the Biological Simulation Verification Service REST API."
+description = "Create, execute, and introspect reproducible composite simulations of dynamic biological systems."
 authors = ["Alex Patrie <alexanderpatrie@gmail.com>"]
 readme = "README.md"
 include = ["pyproject.toml"]
 packages = [
-    {include = "bsvs"},
-    {include = "tests"},
+    {include = "biosimulations_runutils"},
+    {include = "datagen"}
 ]
 
 
 [tool.poetry.scripts]
-verify = "bsvs.__main__:cli"
+verify = "bio_compose.__main__:verification_cli"
+run-simulation = "bio_compose.__main__:simulation_run_cli"
 
 
 [tool.poetry.dependencies]
